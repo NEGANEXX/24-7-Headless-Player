@@ -9,7 +9,7 @@ RUN apt-get update && \
 
 # Build with single job to fit in Railway's 1GB RAM
 ENV CARGO_BUILD_JOBS=1
-RUN cargo install librespot --no-default-features --features pipe-backend
+RUN cargo install librespot --no-default-features --features pipe
 
 # ============================================
 # Stage 2: Node.js application
