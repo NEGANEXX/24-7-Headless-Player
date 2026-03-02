@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spotify 24/7 Bot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(ellipse at 20% 50%, rgba(29, 185, 84, 0.08) 0%, transparent 50%),
+                  radial-gradient(ellipse at 80% 20%, rgba(30, 215, 96, 0.05) 0%, transparent 50%),
+                  radial-gradient(ellipse at 50% 80%, rgba(25, 150, 70, 0.06) 0%, transparent 50%);
+      animation: bgPulse 8s ease-in-out infinite alternate;
+      z-index: 0;
+    }
+
+    @keyframes bgPulse {
+      0% { transform: scale(1) rotate(0deg); }
+      100% { transform: scale(1.1) rotate(3deg); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+      padding: 20px;
+    }
+
+    .card {
+      background: rgba(18, 18, 18, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 24px;
+      padding: 40px 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #1DB954, #1ed760);
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 20px rgba(29, 185, 84, 0.3);
+    }
+
+    .logo svg { width: 28px; height: 28px; fill: white; }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+
+    .header p {
+      font-size: 13px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    /* Status indicators */
+    .status-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .status-badge {
+      flex: 1;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      text-align: center;
+    }
+
+    .status-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .dot.green { background: #1DB954; box-shadow: 0 0 8px rgba(29, 185, 84, 0.5); }
+    .dot.red { background: #e74c3c; box-shadow: 0 0 8px rgba(231, 76, 60, 0.5); }
+    .dot.yellow { background: #f39c12; box-shadow: 0 0 8px rgba(243, 156, 18, 0.5); }
+    .dot.pulse { animation: dotPulse 2s ease-in-out infinite; }
+
+    @keyframes dotPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-badge .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .status-badge .value {
+      font-size: 12px;
+      font-weight: 500;
+      color: #ccc;
+    }
+
+    /* Now playing */
+    .now-playing {
+      background: rgba(29, 185, 84, 0.06);
+      border: 1px solid rgba(29, 185, 84, 0.15);
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: all 0.3s ease;
+    }
+
+    .now-playing.inactive {
+      background: rgba(255, 255, 255, 0.02);
+      border-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .album-art {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .album-art img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .album-art .placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #444;
+    }
+
+    .track-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .track-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .track-artist {
+      font-size: 12px;
+      color: #999;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .track-album {
+      font-size: 11px;
+      color: #666;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Progress bar */
+    .progress-container {
+      margin-top: 10px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1DB954, #1ed760);
+      border-radius: 2px;
+      transition: width 1s linear;
+    }
+
+    .progress-times {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+      font-size: 10px;
+      color: #666;
+    }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-spotify {
+      background: linear-gradient(135deg, #1DB954, #1ed760);
+      color: #000;
+      margin-bottom: 10px;
+    }
+
+    .btn-spotify:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(29, 185, 84, 0.4); }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: #ccc;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+
+    .btn-danger {
+      background: rgba(231, 76, 60, 0.1);
+      color: #e74c3c;
+      border: 1px solid rgba(231, 76, 60, 0.2);
+    }
+
+    .btn-danger:hover { background: rgba(231, 76, 60, 0.2); }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn-row { display: flex; gap: 10px; }
+    .btn-row .btn { flex: 1; }
+
+    /* Devices */
+    .devices {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .devices h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    .device {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.02);
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .device.active { background: rgba(29, 185, 84, 0.08); }
+    .device-name { font-weight: 500; color: #ddd; }
+    .device-type { color: #666; margin-left: auto; font-size: 11px; }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 11px;
+      color: #444;
+    }
+
+    .hidden { display: none !important; }
+
+    /* Equalizer animation */
+    .equalizer {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 16px;
+    }
+
+    .equalizer .bar {
+      width: 3px;
+      background: #1DB954;
+      border-radius: 2px;
+      animation: eqBounce 1s ease-in-out infinite;
+    }
+
+    .equalizer .bar:nth-child(1) { animation-delay: 0s; height: 8px; }
+    .equalizer .bar:nth-child(2) { animation-delay: 0.15s; height: 14px; }
+    .equalizer .bar:nth-child(3) { animation-delay: 0.3s; height: 10px; }
+    .equalizer .bar:nth-child(4) { animation-delay: 0.45s; height: 16px; }
+
+    @keyframes eqBounce {
+      0%, 100% { transform: scaleY(0.4); }
+      50% { transform: scaleY(1); }
+    }
+
+    .equalizer.paused .bar { animation: none; transform: scaleY(0.2); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <div class="logo">
+          <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+        </div>
+        <h1>Spotify 24/7 Bot</h1>
+        <p>Continuous playlist playback</p>
+      </div>
+
+      <!-- Status badges -->
+      <div class="status-row">
+        <div class="status-badge">
+          <span class="value"><span id="auth-dot" class="dot red"></span> <span id="auth-text">Offline</span></span>
+          <span class="label">Auth</span>
+        </div>
+        <div class="status-badge">
+          <span class="value"><span id="device-dot" class="dot red"></span> <span id="device-text">No Device</span></span>
+          <span class="label">Device</span>
+        </div>
+        <div class="status-badge">
+          <span class="value"><span id="playback-dot" class="dot red"></span> <span id="playback-text">Stopped</span></span>
+          <span class="label">Playback</span>
+        </div>
+      </div>
+
+      <!-- Now playing -->
+      <div id="now-playing" class="now-playing inactive">
+        <div class="album-art">
+          <div id="album-placeholder" class="placeholder">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+          </div>
+          <img id="album-img" class="hidden" src="" alt="Album art">
+        </div>
+        <div class="track-info">
+          <div class="track-name" id="track-name">No track playing</div>
+          <div class="track-artist" id="track-artist">—</div>
+          <div class="track-album" id="track-album"></div>
+          <div class="progress-container" id="progress-container" style="display:none">
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+            <div class="progress-times">
+              <span id="progress-current">0:00</span>
+              <span id="progress-total">0:00</span>
+            </div>
+          </div>
+        </div>
+        <div id="equalizer" class="equalizer paused">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div id="login-section">
+        <a href="/login" class="btn btn-spotify" id="login-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+          Login with Spotify
+        </a>
+      </div>
+      <div id="controls-section" class="hidden">
+        <div class="btn-row">
+          <button class="btn btn-spotify" id="start-btn" onclick="startPlayback()">
+            ▶ Start
+          </button>
+          <button class="btn btn-danger" id="stop-btn" onclick="stopPlayback()">
+            ⏹ Stop
+          </button>
+        </div>
+      </div>
+
+      <!-- Devices -->
+      <div class="devices" id="devices-section" style="display:none">
+        <h3>Connected Devices</h3>
+        <div id="devices-list"></div>
+      </div>
+
+      <div class="footer">
+        Auto-refreshes every 10s • Powered by librespot
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let refreshInterval;
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        updateUI(data);
+      } catch (err) {
+        console.error('Status fetch error:', err);
+      }
+    }
+
+    function updateUI(data) {
+      // Auth status
+      const authDot = document.getElementById('auth-dot');
+      const authText = document.getElementById('auth-text');
+      if (data.authenticated) {
+        authDot.className = 'dot green';
+        authText.textContent = 'Connected';
+        document.getElementById('login-section').classList.add('hidden');
+        document.getElementById('controls-section').classList.remove('hidden');
+      } else {
+        authDot.className = 'dot red';
+        authText.textContent = 'Not logged in';
+        document.getElementById('login-section').classList.remove('hidden');
+        document.getElementById('controls-section').classList.add('hidden');
+      }
+
+      // Device status
+      const deviceDot = document.getElementById('device-dot');
+      const deviceText = document.getElementById('device-text');
+      if (data.librespotRunning) {
+        deviceDot.className = 'dot green';
+        deviceText.textContent = data.deviceName;
+      } else {
+        deviceDot.className = 'dot red';
+        deviceText.textContent = 'Offline';
+      }
+
+      // Playback status
+      const playbackDot = document.getElementById('playback-dot');
+      const playbackText = document.getElementById('playback-text');
+      const nowPlaying = document.getElementById('now-playing');
+      const equalizer = document.getElementById('equalizer');
+
+      if (data.playing) {
+        playbackDot.className = 'dot green pulse';
+        playbackText.textContent = 'Playing';
+        nowPlaying.classList.remove('inactive');
+        equalizer.classList.remove('paused');
+      } else {
+        playbackDot.className = 'dot yellow';
+        playbackText.textContent = data.monitoring ? 'Monitoring' : 'Stopped';
+        nowPlaying.classList.add('inactive');
+        equalizer.classList.add('paused');
+      }
+
+      // Track info
+      if (data.currentTrack) {
+        document.getElementById('track-name').textContent = data.currentTrack.name;
+        document.getElementById('track-artist').textContent = data.currentTrack.artist;
+        document.getElementById('track-album').textContent = data.currentTrack.album;
+
+        if (data.currentTrack.albumArt) {
+          document.getElementById('album-img').src = data.currentTrack.albumArt;
+          document.getElementById('album-img').classList.remove('hidden');
+          document.getElementById('album-placeholder').classList.add('hidden');
+        }
+
+        if (data.currentTrack.progress && data.currentTrack.duration) {
+          document.getElementById('progress-container').style.display = '';
+          const pct = (data.currentTrack.progress / data.currentTrack.duration) * 100;
+          document.getElementById('progress-fill').style.width = pct + '%';
+          document.getElementById('progress-current').textContent = formatTime(data.currentTrack.progress);
+          document.getElementById('progress-total').textContent = formatTime(data.currentTrack.duration);
+        }
+      } else {
+        document.getElementById('track-name').textContent = 'No track playing';
+        document.getElementById('track-artist').textContent = '—';
+        document.getElementById('track-album').textContent = '';
+        document.getElementById('album-img').classList.add('hidden');
+        document.getElementById('album-placeholder').classList.remove('hidden');
+        document.getElementById('progress-container').style.display = 'none';
+      }
+
+      // Devices
+      if (data.devices && data.devices.length > 0) {
+        document.getElementById('devices-section').style.display = '';
+        const list = document.getElementById('devices-list');
+        list.innerHTML = data.devices.map(d => `
+          <div class="device ${d.active ? 'active' : ''}">
+            <span class="dot ${d.active ? 'green' : 'red'}" style="flex-shrink:0"></span>
+            <span class="device-name">${d.name}</span>
+            <span class="device-type">${d.type} · ${d.volume}%</span>
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('devices-section').style.display = 'none';
+      }
+    }
+
+    function formatTime(ms) {
+      if (!ms) return '0:00';
+      const m = Math.floor(ms / 60000);
+      const s = Math.floor((ms % 60000) / 1000);
+      return m + ':' + s.toString().padStart(2, '0');
+    }
+
+    async function startPlayback() {
+      const btn = document.getElementById('start-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Starting...';
+      try {
+        await fetch('/api/start', { method: 'POST' });
+      } catch (err) { console.error(err); }
+      setTimeout(() => { btn.disabled = false; btn.innerHTML = '▶ Start'; fetchStatus(); }, 3000);
+    }
+
+    async function stopPlayback() {
+      const btn = document.getElementById('stop-btn');
+      btn.disabled = true;
+      try {
+        await fetch('/api/stop', { method: 'POST' });
+      } catch (err) { console.error(err); }
+      setTimeout(() => { btn.disabled = false; fetchStatus(); }, 1000);
+    }
+
+    // Initial fetch + auto-refresh
+    fetchStatus();
+    refreshInterval = setInterval(fetchStatus, 10000);
+  </script>
+</body>
+</html>
