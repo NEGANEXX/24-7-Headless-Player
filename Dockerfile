@@ -1,7 +1,7 @@
 # ============================================
 # Stage 1: Build librespot from source
 # ============================================
-FROM rust:1.75-slim AS librespot-builder
+FROM rust:1.85-slim AS librespot-builder
 
 RUN apt-get update && \
     apt-get install -y pkg-config && \
