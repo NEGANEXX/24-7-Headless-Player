@@ -29,7 +29,7 @@ class Player {
     startGoLibrespot() {
         console.log(`🔊 Starting go-librespot as "${this.deviceName}"...`);
 
-        this.process = spawn('go-librespot', ['-config_dir', CONFIG_DIR], {
+        this.process = spawn('go-librespot', ['--config_dir', CONFIG_DIR], {
             stdio: ['pipe', 'pipe', 'pipe'],
             env: { ...process.env }
         });
