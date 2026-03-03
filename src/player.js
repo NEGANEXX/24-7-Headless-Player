@@ -34,56 +34,43 @@ class Player {
             env: { ...process.env }
         });
 
-        this.process.stdout.on('data', (data) => {
+        const handleOutput = (data) => {
             const msg = data.toString().trim();
             if (!msg) return;
 
-            // Capture OAuth login URL
-            const urlMatch = msg.match(/(https?:\/\/\S+spotify\S+)/i) ||
-                msg.match(/(https?:\/\/localhost:\d+\/login\S*)/i) ||
-                msg.match(/visit[:\s]+(https?:\/\/\S+)/i);
+            // Capture OAuth URL from any log output
+            const urlMatch = msg.match(/https:\/\/accounts\.spotify\.com[^\s"']*/i) ||
+                msg.match(/http:\/\/[^\s"']*\/login[^\s"']*/i);
             if (urlMatch) {
-                this.loginUrl = urlMatch[1];
-                console.log(`🔗 Login URL: ${this.loginUrl}`);
+                this.loginUrl = urlMatch[0];
+                console.log(`🔗 Login URL captured: ${this.loginUrl}`);
             }
 
-            if (msg.toLowerCase().includes('authenticated') || msg.toLowerCase().includes('logged in')) {
+            // Detect successful authentication
+            const lower = msg.toLowerCase();
+            if (lower.includes('authenticated') || lower.includes('logged in') ||
+                lower.includes('welcome') || lower.includes('country:')) {
                 this.loginUrl = null;
                 this.retryCount = 0;
-                console.log('✅ go-librespot authenticated!');
-                // Auto-start playback once authenticated and Spotify Web API is ready
-                setTimeout(() => this.startPlayback(), 5000);
+                console.log('✅ go-librespot authenticated with Spotify!');
+                if (!this.monitoring) {
+                    setTimeout(() => this.startPlayback(), 3000);
+                }
             }
 
             console.log(`[go-librespot] ${msg}`);
-        });
+        };
 
-        this.process.stderr.on('data', (data) => {
-            const msg = data.toString().trim();
-            if (!msg) return;
-
-            const urlMatch = msg.match(/(https?:\/\/\S+spotify\S+)/i) ||
-                msg.match(/(https?:\/\/localhost:\d+\/login\S*)/i) ||
-                msg.match(/visit[:\s]+(https?:\/\/\S+)/i) ||
-                msg.match(/open (https?:\/\/\S+)/i);
-            if (urlMatch) {
-                this.loginUrl = urlMatch[1];
-                console.log(`🔗 Login URL: ${this.loginUrl}`);
-            }
-
-            if (msg.toLowerCase().includes('authenticated') || msg.toLowerCase().includes('logged in')) {
-                this.loginUrl = null;
-                this.retryCount = 0;
-                console.log('✅ go-librespot authenticated!');
-                setTimeout(() => this.startPlayback(), 5000);
-            }
-
-            console.log(`[go-librespot] ${msg}`);
-        });
+        this.process.stdout.on('data', handleOutput);
+        this.process.stderr.on('data', handleOutput);
 
         this.process.on('close', (code) => {
             console.log(`⚠️  go-librespot exited with code ${code}`);
             this.process = null;
+            if (this.loginPollInterval) {
+                clearInterval(this.loginPollInterval);
+                this.loginPollInterval = null;
+            }
 
             if (this.retryCount < this.maxRetries) {
                 this.retryCount++;
@@ -98,6 +85,46 @@ class Player {
         this.process.on('error', (err) => {
             console.error(`❌ go-librespot error: ${err.message}`);
         });
+
+        // After 3 seconds, start polling the go-librespot API for login URL
+        setTimeout(() => this.pollForLoginUrl(), 3000);
+    }
+
+    async pollForLoginUrl() {
+        // Poll go-librespot's /login endpoint to get the OAuth URL
+        if (this.loginPollInterval) clearInterval(this.loginPollInterval);
+
+        this.loginPollInterval = setInterval(async () => {
+            if (!this.process) {
+                clearInterval(this.loginPollInterval);
+                this.loginPollInterval = null;
+                return;
+            }
+
+            try {
+                const result = await this.apiCall('GET', '/login');
+                if (result && result.login_url) {
+                    if (this.loginUrl !== result.login_url) {
+                        this.loginUrl = result.login_url;
+                        console.log(`🔗 OAuth URL ready: ${this.loginUrl}`);
+                    }
+                } else {
+                    // No login URL means already authenticated
+                    if (this.loginUrl) {
+                        this.loginUrl = null;
+                        console.log('✅ go-librespot is authenticated!');
+                        if (!this.monitoring) {
+                            setTimeout(() => this.startPlayback(), 2000);
+                        }
+                    }
+                    // Stop polling once authenticated
+                    clearInterval(this.loginPollInterval);
+                    this.loginPollInterval = null;
+                }
+            } catch {
+                // API not ready yet, keep polling
+            }
+        }, 3000);
     }
 
     // Call go-librespot's internal REST API

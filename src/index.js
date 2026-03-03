@@ -59,6 +59,15 @@ app.get('/api/device-login-url', (req, res) => {
   res.json({ url: player.loginUrl || null });
 });
 
+// Redirect straight to go-librespot OAuth login
+app.get('/go-login', (req, res) => {
+  if (player.loginUrl) {
+    res.redirect(player.loginUrl);
+  } else {
+    res.send('go-librespot is already authenticated! <a href="/">Go back</a>');
+  }
+});
+
 // Manual stop playback
 app.post('/api/stop', async (req, res) => {
   try {
