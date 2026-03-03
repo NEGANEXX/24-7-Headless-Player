@@ -1,10 +1,9 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
-const path = require('path');
 const http = require('http');
 
 const CACHE_DIR = '/app/cache';
-const CONFIG_PATH = '/app/go-librespot-config.yml';
+const CONFIG_DIR = '/app/config';
 const GO_LIBRESPOT_PORT = 3678; // internal go-librespot API port
 
 class Player {
@@ -30,7 +29,7 @@ class Player {
     startGoLibrespot() {
         console.log(`🔊 Starting go-librespot as "${this.deviceName}"...`);
 
-        this.process = spawn('go-librespot', ['--config_path', CONFIG_PATH], {
+        this.process = spawn('go-librespot', ['-config_dir', CONFIG_DIR], {
             stdio: ['pipe', 'pipe', 'pipe'],
             env: { ...process.env }
         });

@@ -9,11 +9,8 @@ log_level: info
 audio_backend: pipe
 audio_device: ""
 
-# Store credentials here so login persists across restarts
-credentials_path: /app/cache/credentials.json
-
-# go-librespot's built-in HTTP API/server
-# The Node.js app talks to this on port 3678
+# go-librespot's built-in HTTP API
+# Node.js app communicates via this port
 server:
   enabled: true
   port: 3678

@@ -19,7 +19,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --production
 
-# Copy application code
+# Copy config and application code
+COPY go-librespot-config.yml /app/config/config.yml
 COPY . .
 
 EXPOSE 3000
