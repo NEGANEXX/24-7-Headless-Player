@@ -27,6 +27,8 @@ class Player {
     }
 
     startLibrespot() {
+        const username = process.env.SPOTIFY_USERNAME;
+
         const args = [
             '--name', this.deviceName,
             '--backend', 'pipe',
@@ -36,6 +38,11 @@ class Player {
             '--enable-volume-normalisation',
             '--cache', CACHE_DIR
         ];
+
+        // Add username to trigger OAuth authentication (required for cloud/headless)
+        if (username) {
+            args.push('--username', username);
+        }
 
         console.log(`🔊 Starting librespot as "${this.deviceName}"...`);
 
