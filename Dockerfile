@@ -10,7 +10,7 @@ RUN apt-get update && \
 
 # Build with single job to fit in Railway's memory limits
 ENV CARGO_BUILD_JOBS=1
-RUN cargo install librespot --locked
+RUN cargo install librespot --version 0.4.2
 
 # ============================================
 # Stage 2: Node.js application
