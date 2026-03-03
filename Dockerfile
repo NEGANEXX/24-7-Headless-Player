@@ -3,9 +3,9 @@
 # ============================================
 FROM rust:slim-bookworm AS librespot-builder
 
-# libasound2-dev is needed for the default rodio-backend (uses cpal/ALSA)
+# libasound2-dev for ALSA, libssl-dev for OpenSSL, pkg-config for discovery
 RUN apt-get update && \
-    apt-get install -y pkg-config libasound2-dev && \
+    apt-get install -y pkg-config libasound2-dev libssl-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Build with single job to fit in Railway's memory limits
