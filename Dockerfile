@@ -1,7 +1,7 @@
 # ============================================
 # Stage 1: Build librespot from source
 # ============================================
-FROM rust:1.85-slim AS librespot-builder
+FROM rust:latest AS librespot-builder
 
 # libasound2-dev is needed for the default rodio-backend (uses cpal/ALSA)
 RUN apt-get update && \
@@ -9,7 +9,6 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Build with single job to fit in Railway's memory limits
-# The pipe backend is always compiled in (no feature flag needed)
 ENV CARGO_BUILD_JOBS=1
 RUN cargo install librespot --locked
 
