@@ -11,7 +11,7 @@ RUN apt-get update && \
 # Build with single job to fit in Railway's memory limits
 # The pipe backend is always compiled in (no feature flag needed)
 ENV CARGO_BUILD_JOBS=1
-RUN cargo install librespot
+RUN cargo install librespot --locked
 
 # ============================================
 # Stage 2: Node.js application
