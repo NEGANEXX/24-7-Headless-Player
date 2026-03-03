@@ -3,9 +3,9 @@
 # ============================================
 FROM node:20-slim
 
-# Install ca-certificates for HTTPS
+# Install runtime dependencies
 RUN apt-get update && \
-    apt-get install -y ca-certificates curl && \
+    apt-get install -y ca-certificates curl libasound2 && \
     rm -rf /var/lib/apt/lists/*
 
 # Download go-librespot v0.7.1 prebuilt binary (no Rust compilation needed!)
