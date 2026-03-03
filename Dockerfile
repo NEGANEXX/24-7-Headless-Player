@@ -17,9 +17,9 @@ RUN cargo install librespot --locked
 # ============================================
 FROM node:20-slim
 
-# libasound2 is needed at runtime for the linked ALSA symbols
+# libasound2 for ALSA, libssl3 + ca-certificates for OpenSSL/TLS
 RUN apt-get update && \
-    apt-get install -y libasound2 && \
+    apt-get install -y libasound2 libssl3 ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy librespot binary from builder
