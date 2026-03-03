@@ -1,4 +1,8 @@
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+
+const CACHE_DIR = '/app/cache';
 
 class Player {
     constructor(spotifyAuth) {
@@ -10,30 +14,27 @@ class Player {
         this.playlistUri = process.env.PLAYLIST_URI;
         this.retryCount = 0;
         this.maxRetries = 50;
+        this.oauthUrl = null; // OAuth URL captured from librespot output
+        this.librespotReady = false;
+
+        // Ensure cache directory exists
+        if (!fs.existsSync(CACHE_DIR)) {
+            fs.mkdirSync(CACHE_DIR, { recursive: true });
+        }
 
         // Start librespot on construction
         this.startLibrespot();
     }
 
     startLibrespot() {
-        const username = process.env.SPOTIFY_USERNAME;
-        const password = process.env.SPOTIFY_PASSWORD;
-
-        if (!username || !password) {
-            console.log('⚠️  SPOTIFY_USERNAME and SPOTIFY_PASSWORD required for librespot device.');
-            console.log('   Set them as environment variables and restart.');
-            return;
-        }
-
         const args = [
             '--name', this.deviceName,
-            '--username', username,
-            '--password', password,
             '--backend', 'pipe',
             '--initial-volume', '100',
             '--device-type', 'computer',
             '--bitrate', '160',
-            '--enable-volume-normalisation'
+            '--enable-volume-normalisation',
+            '--cache', CACHE_DIR
         ];
 
         console.log(`🔊 Starting librespot as "${this.deviceName}"...`);
@@ -48,6 +49,21 @@ class Player {
         this.librespotProcess.stderr.on('data', (data) => {
             const msg = data.toString().trim();
             if (msg) {
+                // Capture OAuth URL if librespot outputs one
+                const urlMatch = msg.match(/(https?:\/\/accounts\.spotify\.com\S+)/);
+                if (urlMatch) {
+                    this.oauthUrl = urlMatch[1];
+                    console.log(`🔗 Librespot OAuth URL: ${this.oauthUrl}`);
+                }
+
+                // Detect when librespot is authenticated and ready
+                if (msg.includes('Authenticated as') || msg.includes('Country:') || msg.includes('Connecting')) {
+                    this.librespotReady = true;
+                    this.oauthUrl = null; // Clear URL once authenticated
+                    this.retryCount = 0;
+                    console.log('✅ Librespot authenticated and connected!');
+                }
+
                 // Filter out noisy audio data messages, keep important ones
                 if (!msg.includes('kBytesPerSample') && !msg.includes('kSamplesPerSecond')) {
                     console.log(`[librespot] ${msg}`);
@@ -58,6 +74,7 @@ class Player {
         this.librespotProcess.on('close', (code) => {
             console.log(`⚠️  librespot exited with code ${code}`);
             this.librespotProcess = null;
+            this.librespotReady = false;
 
             if (this.retryCount < this.maxRetries) {
                 this.retryCount++;
@@ -214,6 +231,8 @@ class Player {
         const status = {
             authenticated: this.auth.isAuthenticated(),
             librespotRunning: this.librespotProcess !== null && !this.librespotProcess.killed,
+            librespotReady: this.librespotReady,
+            oauthUrl: this.oauthUrl,
             monitoring: this.monitoring,
             deviceName: this.deviceName,
             playlistUri: this.playlistUri,
