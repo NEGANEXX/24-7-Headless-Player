@@ -352,6 +352,30 @@ class Player {
     }
 
     /**
+     * Resume playback.
+     */
+    async play() {
+        if (!this.auth || !this.auth.isAuthenticated()) {
+            throw new Error('Spotify not authenticated');
+        }
+        const api = this.auth.getApi();
+        await api.play();
+        console.log('▶️  Playback resumed');
+    }
+
+    /**
+     * Pause playback.
+     */
+    async pause() {
+        if (!this.auth || !this.auth.isAuthenticated()) {
+            throw new Error('Spotify not authenticated');
+        }
+        const api = this.auth.getApi();
+        await api.pause();
+        console.log('⏸️  Playback paused');
+    }
+
+    /**
      * Get current volume (0-100). Returns null if unavailable.
      */
     async getVolume() {

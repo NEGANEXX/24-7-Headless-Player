@@ -36,7 +36,8 @@ const RATE_LIMITS = {
   queue: 5,     // 5 queue adds per minute per IP
   skip: 3,      // 3 skips per minute per IP
   volume: 10,   // 10 volume changes per minute per IP
-  previous: 3   // 3 previous track per minute per IP
+  previous: 3,  // 3 previous track per minute per IP
+  playback: 10  // 10 play/pause per minute per IP
 };
 
 function rateLimit(action) {
@@ -235,6 +236,29 @@ app.post('/api/previous', rateLimit('previous'), async (req, res) => {
   }
 });
 
+// ─── PUBLIC API: Play / Pause ────────────────────────────────
+
+app.post('/api/playback', rateLimit('playback'), async (req, res) => {
+  try {
+    const { action } = req.body;
+    if (action === 'play') {
+      await player.play();
+    } else if (action === 'pause') {
+      await player.pause();
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+    res.json({ success: true, action });
+  } catch (err) {
+    if (err.message === 'Spotify not authenticated') {
+      res.status(401).json({ error: 'Spotify not connected yet' });
+    } else {
+      console.error('Playback error:', err.message);
+      res.status(500).json({ error: 'Could not change playback.' });
+    }
+  }
+});
+
 // ─── PUBLIC API: Volume Control ──────────────────────────────
 
 app.get('/api/volume', async (req, res) => {
@@ -317,7 +341,7 @@ app.use((req, res) => {
 // ─── START SERVER ────────────────────────────────────────────
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎵 Crowd DJ running on port ${PORT}`);
+  console.log(`🎵 Sptfy DJ running on port ${PORT}`);
   console.log(`📊 Dashboard: http://localhost:${PORT}`);
 
   // Try to restore session from saved tokens

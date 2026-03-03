@@ -4,12 +4,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Crowd DJ — Control the Music</title>
+  <title>Let your artful melodies delight my ears.</title>
   <meta name="description" content="Search and queue songs to control what's playing right now.">
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
@@ -116,10 +117,38 @@
     }
 
     .header h1 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
       font-size: 22px;
-      font-weight: 800;
-      color: #fff;
-      letter-spacing: -.8px
+      font-weight: 300;
+      font-style: italic;
+      color: rgba(255, 255, 255, .65);
+      letter-spacing: .5px;
+      line-height: 1.4;
+      max-width: 340px;
+      margin: 0 auto;
+      min-height: 62px
+    }
+
+    .tw-cursor {
+      display: inline-block;
+      width: 1px;
+      height: 1em;
+      background: rgba(255, 255, 255, .5);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0
+      }
     }
 
     .tagline {
@@ -909,8 +938,7 @@
             d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
         </svg>
       </div>
-      <h1>Crowd DJ</h1>
-      <p class="tagline">Let your artful melodies delight my ears.</p>
+      <h1><span id="typewriter"></span><span class="tw-cursor"></span></h1>
       <div id="badge" class="badge"><span class="dot"></span><span id="badge-text">Connecting...</span></div>
     </header>
 
@@ -946,7 +974,8 @@
 
     <div id="controls" class="controls hidden">
       <button class="ctrl-btn" id="prev-btn" onclick="prevTrack()" title="Previous">⏮</button>
-      <button class="ctrl-btn big" id="skip-btn" onclick="skipTrack()" title="Skip">⏭</button>
+      <button class="ctrl-btn big" id="play-btn" onclick="togglePlayback()" title="Play/Pause">▶</button>
+      <button class="ctrl-btn" id="skip-btn" onclick="skipTrack()" title="Skip">⏭</button>
     </div>
 
     <div id="vol-section" class="vol hidden">
@@ -1071,6 +1100,8 @@
       const np = document.getElementById('np'), eq = document.getElementById('eq'), tag = document.getElementById('np-tag');
       if (d.playing && d.currentTrack) {
         np.classList.add('active'); eq.classList.remove('off'); tag.textContent = 'NOW PLAYING';
+        document.getElementById('play-btn').textContent = '⏸';
+        isPlaying = true;
         document.getElementById('np-name').textContent = d.currentTrack.name;
         document.getElementById('np-artist').textContent = d.currentTrack.artist;
         if (d.currentTrack.albumArt) { const img = document.getElementById('art-img'); if (img.src !== d.currentTrack.albumArt) img.src = d.currentTrack.albumArt; img.classList.remove('hidden'); document.getElementById('art-ph').classList.add('hidden'); }
@@ -1079,6 +1110,8 @@
       } else {
         np.classList.remove('active'); eq.classList.add('off');
         tag.textContent = d.authenticated ? 'PAUSED' : 'NOT PLAYING';
+        document.getElementById('play-btn').textContent = '▶';
+        isPlaying = false;
         document.getElementById('np-name').textContent = d.authenticated ? 'Nothing playing' : 'Waiting for DJ...';
         document.getElementById('np-artist').textContent = '—';
         document.getElementById('art-img').classList.add('hidden'); document.getElementById('art-ph').classList.remove('hidden');
@@ -1136,6 +1169,20 @@
       setTimeout(() => btn.disabled = false, 1500);
     }
 
+    let isPlaying = false;
+    async function togglePlayback() {
+      const btn = document.getElementById('play-btn'); btn.disabled = true;
+      const action = isPlaying ? 'pause' : 'play';
+      try {
+        const r = await fetch('/api/playback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
+        const d = await r.json();
+        if (r.status === 429) toast('Wait', 'err');
+        else if (d.success) { isPlaying = !isPlaying; btn.textContent = isPlaying ? '⏸' : '▶'; toast(isPlaying ? 'Playing' : 'Paused', 'ok'); }
+        else toast(d.error || 'Failed', 'err');
+      } catch (e) { toast('Error', 'err'); }
+      setTimeout(() => btn.disabled = false, 1000);
+    }
+
     async function setVol(v) { try { await fetch('/api/volume', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ volume: v }) }); } catch (e) { } }
 
     function toggleMute() {
@@ -1151,6 +1198,30 @@
     function show(id) { document.getElementById(id).classList.remove('hidden'); }
     function hide(id) { document.getElementById(id).classList.add('hidden'); }
     let tT; function toast(m, ty = 'ok') { const t = document.getElementById('toast'); t.textContent = m; t.className = `toast ${ty}`; clearTimeout(tT); void t.offsetWidth; t.classList.add('show'); tT = setTimeout(() => t.classList.remove('show'), 2500); }
+
+    // ── Typewriter ───────────────────────────────────────
+    (function typewriter() {
+      const words = [
+        'Let your artful melodies delight my ears.',
+        'Where rhythm meets soul, magic unfolds.',
+        'Every note tells a story untold.',
+        'Music is the language of the heart.',
+        'Feel the beat, let the rhythm speak.'
+      ];
+      const el = document.getElementById('typewriter');
+      let wi = 0, ci = 0, deleting = false;
+      function tick() {
+        const w = words[wi];
+        if (!deleting) {
+          if (ci < w.length) { ci++; el.textContent = w.substring(0, ci); setTimeout(tick, 80); }
+          else setTimeout(() => { deleting = true; tick(); }, 2500);
+        } else {
+          if (ci > 0) { ci--; el.textContent = w.substring(0, ci); setTimeout(tick, 40); }
+          else { deleting = false; wi = (wi + 1) % words.length; setTimeout(tick, 400); }
+        }
+      }
+      tick();
+    })();
   </script>
 </body>
 
