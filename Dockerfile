@@ -1,29 +1,17 @@
 # ============================================
-# Stage 1: Build librespot from source
-# ============================================
-FROM rust:slim-bookworm AS librespot-builder
-
-# libasound2-dev for ALSA, libssl-dev for OpenSSL, pkg-config for discovery
-RUN apt-get update && \
-    apt-get install -y pkg-config libasound2-dev libssl-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-# Build with single job to fit in Railway's memory limits
-ENV CARGO_BUILD_JOBS=1
-RUN cargo install librespot --version 0.4.2
-
-# ============================================
-# Stage 2: Node.js application
+# Single stage: Node.js + go-librespot binary
 # ============================================
 FROM node:20-slim
 
-# libasound2 for ALSA, libssl3 + ca-certificates for OpenSSL/TLS
+# Install ca-certificates for HTTPS
 RUN apt-get update && \
-    apt-get install -y libasound2 libssl3 ca-certificates && \
+    apt-get install -y ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy librespot binary from builder
-COPY --from=librespot-builder /usr/local/cargo/bin/librespot /usr/local/bin/librespot
+# Download go-librespot v0.7.1 prebuilt binary (no Rust compilation needed!)
+RUN curl -L https://github.com/devgianlu/go-librespot/releases/download/v0.7.1/go-librespot_linux_x86_64.tar.gz \
+    | tar -xz -C /usr/local/bin go-librespot && \
+    chmod +x /usr/local/bin/go-librespot
 
 WORKDIR /app
 
@@ -34,8 +22,6 @@ RUN npm ci --production
 # Copy application code
 COPY . .
 
-# Railway sets PORT automatically via env var
 EXPOSE 3000
 
-# Start the application
 CMD ["node", "src/index.js"]

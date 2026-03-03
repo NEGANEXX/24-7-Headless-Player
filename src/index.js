@@ -54,6 +54,11 @@ app.post('/api/start', async (req, res) => {
   }
 });
 
+// Get go-librespot OAuth login URL
+app.get('/api/device-login-url', (req, res) => {
+  res.json({ url: player.loginUrl || null });
+});
+
 // Manual stop playback
 app.post('/api/stop', async (req, res) => {
   try {
