@@ -1,7 +1,7 @@
 # ============================================
 # Stage 1: Build librespot from source
 # ============================================
-FROM rust:latest AS librespot-builder
+FROM rust:slim-bookworm AS librespot-builder
 
 # libasound2-dev is needed for the default rodio-backend (uses cpal/ALSA)
 RUN apt-get update && \
