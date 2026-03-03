@@ -18,6 +18,10 @@ class Player {
         this.maxRetries = 50;
         this.loginUrl = null;
 
+        // Queue system — in-memory list of requested tracks
+        this.queue = [];
+        this.maxQueueSize = 50;
+
         // Ensure cache directory exists
         if (!fs.existsSync(CACHE_DIR)) {
             fs.mkdirSync(CACHE_DIR, { recursive: true });
@@ -264,18 +268,139 @@ class Player {
         }, 30000);
     }
 
+    // ─── QUEUE SYSTEM ──────────────────────────────────────────────
+
+    /**
+     * Add a track to the Spotify queue AND our local display queue.
+     * Returns sanitized track info only.
+     */
+    async addToQueue(trackUri, trackInfo) {
+        if (!this.auth || !this.auth.isAuthenticated()) {
+            throw new Error('Spotify not authenticated');
+        }
+
+        if (this.queue.length >= this.maxQueueSize) {
+            throw new Error('Queue is full (max 50 tracks)');
+        }
+
+        // Validate URI format — only allow spotify:track: URIs
+        if (!trackUri || !trackUri.match(/^spotify:track:[a-zA-Z0-9]+$/)) {
+            throw new Error('Invalid track URI');
+        }
+
+        const api = this.auth.getApi();
+        await api.addToQueue(trackUri);
+
+        // Add sanitized entry to our display queue (NO tokens/secrets)
+        const entry = {
+            uri: trackUri,
+            name: trackInfo.name || 'Unknown',
+            artist: trackInfo.artist || 'Unknown',
+            albumArt: trackInfo.albumArt || null,
+            addedAt: Date.now()
+        };
+        this.queue.push(entry);
+
+        console.log(`➕ Queued: ${entry.name} — ${entry.artist}`);
+        return entry;
+    }
+
+    /**
+     * Skip the current track.
+     */
+    async skipTrack() {
+        if (!this.auth || !this.auth.isAuthenticated()) {
+            throw new Error('Spotify not authenticated');
+        }
+
+        const api = this.auth.getApi();
+        await api.skipToNext();
+
+        // Remove the first item from our display queue (it just played/skipped)
+        if (this.queue.length > 0) {
+            this.queue.shift();
+        }
+
+        console.log('⏭️  Track skipped');
+    }
+
+    /**
+     * Get the display queue. Returns ONLY safe, public info.
+     */
+    getQueue() {
+        return this.queue.map(item => ({
+            uri: item.uri,
+            name: item.name,
+            artist: item.artist,
+            albumArt: item.albumArt,
+            addedAt: item.addedAt
+        }));
+    }
+
+    // ─── PLAYBACK CONTROLS ────────────────────────────────────────
+
+    /**
+     * Go to previous track.
+     */
+    async previousTrack() {
+        if (!this.auth || !this.auth.isAuthenticated()) {
+            throw new Error('Spotify not authenticated');
+        }
+        const api = this.auth.getApi();
+        await api.skipToPrevious();
+        console.log('⏮️  Previous track');
+    }
+
+    /**
+     * Get current volume (0-100). Returns null if unavailable.
+     */
+    async getVolume() {
+        if (!this.auth || !this.auth.isAuthenticated()) return null;
+        try {
+            const api = this.auth.getApi();
+            const pb = await api.getMyCurrentPlaybackState();
+            if (pb.body && pb.body.device) {
+                return pb.body.device.volume_percent;
+            }
+        } catch { /* silent */ }
+        return null;
+    }
+
+    /**
+     * Set volume (0-100).
+     */
+    async setVolume(volume) {
+        if (!this.auth || !this.auth.isAuthenticated()) {
+            throw new Error('Spotify not authenticated');
+        }
+        const api = this.auth.getApi();
+        await api.setVolume(volume);
+        console.log(`🔊 Volume set to ${volume}%`);
+    }
+
+    // ─── STATUS ────────────────────────────────────────────────────
+
+    /**
+     * Get status. SECURITY: Never exposes tokens, credentials, env vars,
+     * client IDs/secrets, usernames, passwords, or internal URLs.
+     */
     async getStatus() {
         const status = {
             authenticated: this.auth ? this.auth.isAuthenticated() : false,
             processRunning: this.process !== null && !this.process.killed,
             monitoring: this.monitoring,
             deviceName: this.deviceName,
-            playlistUri: this.playlistUri,
-            loginUrl: this.loginUrl,
             playing: false,
             currentTrack: null,
-            devices: []
+            volume: null,
+            queue: this.getQueue()
         };
+
+        // NOTE: We intentionally do NOT expose:
+        // - playlistUri (could reveal personal info)
+        // - loginUrl (go-librespot OAuth — admin only)
+        // - devices list (can reveal account info)
+        // - any token or credential data
 
         // Try go-librespot API first
         try {
@@ -293,17 +418,28 @@ class Player {
             }
         } catch { /* go-librespot API not available yet */ }
 
-        // Get device list from Spotify Web API
+        // Fallback: try Spotify Web API for current track + volume
         if (status.authenticated) {
             try {
                 const api = this.auth.getApi();
-                const devices = await api.getMyDevices();
-                status.devices = devices.body.devices.map(d => ({
-                    name: d.name,
-                    type: d.type,
-                    active: d.is_active,
-                    volume: d.volume_percent
-                }));
+                const pb = await api.getMyCurrentPlaybackState();
+                if (pb.body) {
+                    if (pb.body.device) {
+                        status.volume = pb.body.device.volume_percent;
+                    }
+                    if (!status.currentTrack && pb.body.item) {
+                        status.playing = pb.body.is_playing || false;
+                        const t = pb.body.item;
+                        status.currentTrack = {
+                            name: t.name,
+                            artist: t.artists.map(a => a.name).join(', '),
+                            album: t.album.name,
+                            albumArt: t.album.images.length > 0 ? t.album.images[0].url : null,
+                            progress: pb.body.progress_ms || 0,
+                            duration: t.duration_ms || 0
+                        };
+                    }
+                }
             } catch { /* silent */ }
         }
 
@@ -316,3 +452,4 @@ class Player {
 }
 
 module.exports = Player;
+

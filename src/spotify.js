@@ -114,6 +114,22 @@ class SpotifyAuth {
     isAuthenticated() {
         return this.authenticated;
     }
+
+    /**
+     * Search for tracks. Returns sanitized results with NO sensitive data.
+     */
+    async searchTracks(query, limit = 10) {
+        if (!this.authenticated) throw new Error('Not authenticated');
+        const result = await this.api.searchTracks(query, { limit });
+        return result.body.tracks.items.map(track => ({
+            uri: track.uri,
+            name: track.name,
+            artist: track.artists.map(a => a.name).join(', '),
+            album: track.album.name,
+            albumArt: track.album.images.length > 0 ? track.album.images[0].url : null,
+            duration: track.duration_ms
+        }));
+    }
 }
 
 module.exports = SpotifyAuth;
